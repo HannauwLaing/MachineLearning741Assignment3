@@ -1,0 +1,2 @@
+completed_runs_this_process,current_run_number,setup_time_seconds,process_total_time_seconds,interrupted
+30,61,1.1945335865020752,59670.44428038597,True
