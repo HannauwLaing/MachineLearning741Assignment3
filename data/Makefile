@@ -17,13 +17,15 @@ run_attack:
 
 plots:
 	@mkdir -p ../report/outputFiles
-	@python3 -m venv .venv > /dev/null
+	@.venv/bin/python3 -m venv .venv > /dev/null
 	# @.venv/bin/python3 ./plot_assignment3_results.py
-	@python3 ./plot_assignment3_results.py
+	@.venv/bin/python3 ./plot_assignment3_results.py
 
 setup:
+	@test -d .venv || python3 -m venv .venv >/dev/null;
 	@.venv/bin/pip install --upgrade pip > /dev/null
 	@.venv/bin/pip install pandas > /dev/null
+	@.venv/bin/pip install numpy > /dev/null
 	@.venv/bin/pip install Jinja2 > /dev/null
 	@.venv/bin/pip install matplotlib > /dev/null
 	@.venv/bin/pip install tqdm > /dev/null

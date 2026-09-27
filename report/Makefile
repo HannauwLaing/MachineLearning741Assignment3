@@ -1,15 +1,17 @@
 
 .PHONY: compilePDF clean
 
+
+
 compilePDF: plots
 	mkdir -p outputFiles/targetT1/
 	latexmk -pdf -shell-escape -auxdir=outputFiles/targetT1/ -outdir=../ -interaction=nonstopmode ./27086534RW741assignment*.tex
 
-setup: make_plots
-	@#;
 
-plots:
+plots: 
+	@$(MAKE) setup -C ../data/
 	@$(MAKE) plots -C ../data/
+
 
 
 
