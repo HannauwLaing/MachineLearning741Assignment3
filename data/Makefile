@@ -18,7 +18,8 @@ run_attack:
 plots:
 	@mkdir -p ../report/outputFiles
 	@python3 -m venv .venv > /dev/null
-	@.venv/bin/python3 ./plot_assignment3_results.py
+	# @.venv/bin/python3 ./plot_assignment3_results.py
+	@python3 ./plot_assignment3_results.py
 
 setup:
 	@.venv/bin/pip install --upgrade pip > /dev/null
