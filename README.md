@@ -67,3 +67,19 @@ make compilePDF
 ```
 
 
+# Report:
+
+
+[Open report](https://hannauwlaing.github.io/MachineLearning741Assignment3/report.pdf)
+
+### Report preview
+
+![Report page 1](https://hannauwlaing.github.io/MachineLearning741Assignment3/report-pages/page-1.png)
+![Report page 2](https://hannauwlaing.github.io/MachineLearning741Assignment3/report-pages/page-2.png)
+![Report page 3](https://hannauwlaing.github.io/MachineLearning741Assignment3/report-pages/page-3.png)
+![Report page 4](https://hannauwlaing.github.io/MachineLearning741Assignment3/report-pages/page-4.png)
+![Report page 5](https://hannauwlaing.github.io/MachineLearning741Assignment3/report-pages/page-5.png)
+![Report page 6](https://hannauwlaing.github.io/MachineLearning741Assignment3/report-pages/page-6.png)
+![Report page 7](https://hannauwlaing.github.io/MachineLearning741Assignment3/report-pages/page-7.png)
+![Report page 8](https://hannauwlaing.github.io/MachineLearning741Assignment3/report-pages/page-8.png)
+![Report page 9](https://hannauwlaing.github.io/MachineLearning741Assignment3/report-pages/page-9.png)
