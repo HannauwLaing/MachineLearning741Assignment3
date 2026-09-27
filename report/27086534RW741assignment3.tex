@@ -18,7 +18,8 @@
 \usepackage{booktabs}
 \usepackage{array}
 
-\usepackage{xcolor}
+\usepackage[dvipsnames]{xcolor}         % colors
+% \usepackage{xcolor}
 \usepackage{listings}
 
 \usepackage{enumitem}
@@ -28,9 +29,14 @@
 \usepackage{hyperref}
 
 \hypersetup{
-    colorlinks=true,
-    linkcolor=black,
-citecolor=black,
+    breaklinks,
+    % Replace the jarring link boxes with dark text color
+    colorlinks,
+    linkcolor=BrickRed,
+    % linkcolor=black,
+    citecolor=blue,
+    % citecolor=black,
+    % urlcolor=MidnightBlue,
     urlcolor=blue
 }
 
@@ -67,61 +73,57 @@ citecolor=black,
 % Abstract
 
 
-\noindent\textbf{Code repository:} \url{REPLACE_WITH_GIT_REPOSITORY_URL}
+\noindent\textbf{Code repository:} \url{https://github.com/HannauwLaing/MachineLearning741Assignment3}
 
 \begin{abstract}
-Class imbalance can cause a classifier to obtain high overall accuracy while performing poorly on less frequent classes. This study investigates incremental class learning as an alternative training procedure for a highly imbalanced ten-class network-traffic classification problem. A feedforward neural network trained on all classes from the beginning was used as the baseline. The incremental approach instead began with the two least frequent classes, introduced classes from least to most frequent, and increased the hidden-layer size when the current model remained underfit. Both approaches were evaluated over 60 trials with different random seeds while keeping the same stratified training, validation, and test partitions. Macro recall was used as the primary measure because each class contributes equally to it. The baseline obtained a mean test macro recall of 0.4719, while incremental learning obtained 0.4857 and produced the higher macro recall in 56 of 60 trials. Macro F1 also increased from 0.4855 to 0.5007, while mean accuracy remained effectively unchanged at approximately 0.807. The largest class-level recall improvement occurred for class 8. The results indicate that the incremental procedure provided a small but consistent improvement in class-balanced performance without requiring a larger final network or sacrificing overall accuracy.
+Class imbalance can cause a classifier to obtain high overall accuracy while performing poorly on less frequent classes. This study investigates incremental class learning on a highly imbalanced ten-class network-traffic classification problem. A feedforward neural network trained on all classes from the beginning was used as the baseline. The incremental approach instead began with the two least frequent classes, introduced classes from least to most frequent, and increased the hidden-layer size when the current model remained underfit. Both approaches were evaluated over 60 trials with different random seeds while retaining the same stratified training, validation, and test partitions. Macro recall was used as the primary measure because each class contributes equally to it. The baseline obtained a mean test macro recall of 0.4719, while incremental learning obtained 0.4857 and produced the higher macro recall in 56 of 60 trials. Macro F1 increased from 0.4855 to 0.5007, while mean accuracy remained effectively unchanged at approximately 0.807. A secondary matched experiment used recall over classes 1--8 only as the architecture-selection criterion; this produced no meaningful additional improvement over standard macro-recall selection. The results indicate that the incremental procedure produced a small but consistent improvement in class-balanced performance without requiring a larger final network or sacrificing overall accuracy.
 % There are many ways to preprocess data and modify hyperparameters when training models. Understanding the different effects and trade-offs that each preprocessing step and parameter has on the final model is important when creating the best possible model for a dataset. It is also important to understand the dataset and the goal of the model, rather than simply maximising overall accuracy at the expense of minority classes. Using a kitchen-sink approach to find the best configuration is computationally costly, but it is a useful method for comparing different aspects of a model and identifying which modifications are most important.
 \end{abstract}
 
 \section{Introduction}
 
+Class imbalance occurs when some target classes contain substantially fewer observations than others. A classifier trained directly on such data can achieve a strong overall accuracy while still performing poorly on minority classes because the majority classes contribute most of the training observations $^{\cite{he-garcia}}$. For applications where rare cases are important, an aggregate measure such as accuracy can therefore hide poor class-specific behaviour.
 
-Class imbalance is common in classification problems where some outcomes occur much less frequently than others. A model trained directly on such data can be influenced strongly by the majority classes because they contribute most of the training observations. This can produce an apparently strong classifier when evaluated using overall accuracy, while minority classes remain poorly detected \cite{he-garcia}.
+This report investigates incremental class learning as an alternative training procedure for an imbalanced multiclass problem. Instead of training on every target class from the beginning, the network first learns the two least frequent classes. Further classes are introduced from least to most frequent, while hidden-layer capacity is increased when the current model remains underfit.
 
-This report investigates \textbf{incremental class learning} as an approach to this problem. Instead of exposing the network to all classes from the start, training begins with the two least frequent classes. Further classes are then added from least to most frequent. The hidden layer is also allowed to grow when the current model remains underfit. This gives the minority classes an opportunity to influence the model before the much larger classes are introduced.
+The experiment uses a modified version of the UNSW-NB15 network-traffic dataset. The dataset contains ten target classes and a highly unequal class distribution. The smallest class contains only 174 observations, while the largest contains 93\,000. This provides a suitable setting for investigating whether the order in which classes are introduced changes performance across rare and frequent classes.
 
-The experiment uses the same modified UNSW-NB15 network-traffic dataset used in the preceding assignment. The dataset contains ten target classes and a highly unequal class distribution. The smallest class contains only 174 observations, while the largest contains 93\,000. This makes it suitable for investigating whether a staged training process can improve performance across classes.
+Two approaches are compared. The baseline is a feedforward neural network trained on all ten classes from the start without any explicit class-balancing method. Its hidden-layer size is selected empirically. The incremental model begins with no hidden neurons and two classes, then adds output classes and hidden neurons according to fixed criteria. Both approaches use the same preprocessing, data split, optimiser, loss function, and evaluation measures.
 
-Two approaches are compared. The \textbf{baseline} is a feedforward neural network trained on all ten classes from the start without any class-balancing method. Its hidden-layer size is selected empirically. The \textbf{incremental model} begins with no hidden neurons and two classes, then adds output classes and hidden neurons as required. Both approaches use the same data partition and preprocessing, and both are repeated using multiple random seeds.
-
-Macro recall is the primary performance measure because the purpose of the experiment is to compare performance across an imbalanced multiclass problem. Accuracy, macro precision, macro F1, weighted F1, and per-class recall are used as secondary measures to identify improvements and trade-offs. The objective is not simply to maximise one test score, but to determine whether the incremental training procedure consistently changes the behaviour of the network across repeated trials.
+Macro recall is the primary performance measure because every class contributes equally to it, regardless of frequency. Accuracy, macro precision, macro F1, weighted F1, and per-class precision, recall, and F1 are used as secondary measures to expose improvements and trade-offs. Repeated trials are used so that the comparison does not depend on one favourable random initialisation.
 
 \section{Background}
 
 
-
 \subsection{Feedforward Neural Networks}
 
-A feedforward neural network passes input values through a sequence of weighted connections to produce output scores. A hidden layer allows the network to learn nonlinear relationships that cannot be represented by a direct linear input-to-output mapping. The number of hidden neurons controls part of the model capacity: too few neurons may leave the network unable to represent the classification problem, while unnecessary capacity can increase overfitting and computational cost \cite{engelbrecht}.
+A feedforward neural network maps input features to output scores through layers of weighted connections. In the simplest form used in this study, the network may contain no hidden layer, in which case the inputs are mapped directly to class outputs. Adding a hidden layer allows the model to represent nonlinear relationships between the input features and target classes $^{\cite{engelbrecht}}$.
 
-The networks in this study contain at most one hidden layer. When a hidden layer is present, the hyperbolic tangent activation function is used. The output layer returns one score for each active class. Training uses cross-entropy loss, which is appropriate for multiclass classification. A separate softmax layer is not required in the implementation because the PyTorch cross-entropy loss operates directly on the output scores \cite{pytorch}.
+The number of hidden neurons controls part of the model capacity. A model with too little capacity may underfit because it cannot represent the structure required by the task. Increasing the number of hidden neurons increases the number of adjustable parameters and can improve fit, but unnecessary capacity can also make the network more prone to fitting training-specific patterns rather than generalising to unseen data $^{\cite{engelbrecht,kelleher}}$.
 
-The Adam optimiser is used to update network weights. Adam is a gradient-based optimisation method that adapts the update made to each parameter using estimates based on previous gradients \cite{adam}. The same optimiser settings are used for the baseline and incremental approaches so that the comparison focuses on the training procedure and architecture growth rather than different optimisation algorithms.
+When a hidden layer is present in this implementation, the hyperbolic tangent activation function is used. It transforms the hidden-layer output nonlinearly before the final output layer. The output layer contains one neuron for every currently active class. Cross-entropy loss is used during training, so the raw output scores are passed directly to the PyTorch loss function rather than applying a separate softmax layer in the model $^{\cite{pytorch}}$.
+
+The network parameters are updated using Adam. Adam adapts the parameter updates using information from previous gradients, allowing the optimiser to use different effective step sizes for different parameters $^{\cite{adam}}$. The same optimiser configuration is used for the baseline and incremental networks so that the comparison is focused on the training procedure rather than a change in optimiser.
 
 \subsection{Class Imbalance}
 
-A dataset is imbalanced when its classes contain substantially different numbers of observations. In such a setting, overall accuracy can be dominated by the majority classes and may provide an incomplete view of classifier quality \cite{he-garcia}. This is especially important for the present dataset because the largest training class contains 65\,100 observations while the smallest contains only 122.
+A multiclass dataset is imbalanced when the classes occur at substantially different frequencies. In such a setting, a classifier can reduce its total number of errors by fitting frequent classes well even if it performs poorly on rare classes. Accuracy is therefore not sufficient on its own when the objective is to evaluate performance across all classes $^{\cite{he-garcia}}$.
 
-No over-sampling, under-sampling, or class weighting is used in this experiment. The class imbalance is intentionally retained because the purpose is to evaluate whether incremental class learning itself can change performance on the original imbalanced problem.
+The present experiment intentionally does not use class weighting, under-sampling, or over-sampling. These methods would alter the imbalance that the incremental procedure is intended to address. Keeping the original class frequencies allows the comparison to focus on whether changing the order of class introduction affects the final classifier.
 
 \subsection{Incremental Class Learning}
 
-The incremental procedure changes the order in which the classification problem is presented to the network. The two least frequent training classes are used first. The next least frequent class is introduced only after the current stage stops requiring additional hidden-layer growth. This continues until all ten classes are active.
+Class-incremental learning broadly concerns learning a classifier while new classes are introduced over time $^{\cite{zhou-cil}}$. In this assignment, the incremental procedure differs from stricter continual-learning settings because previously introduced classes remain available for training. When a new class is added, the next stage trains on all classes introduced up to that point rather than only on the newest class.
 
-When a new class is introduced, the output layer is expanded by one neuron. Parameters associated with existing outputs are retained, while the new output weights are newly initialised. When hidden-layer growth is required, one hidden neuron is added at a time. Existing hidden and output weights are retained after the hidden layer has already been created. The special transition from zero hidden neurons to one hidden neuron changes the network from a direct linear model to a one-hidden-layer model.
+The order of introduction is fixed from the least frequent to the most frequent class. This gives the rare classes exclusive or near-exclusive influence during the earliest stages of training. As more classes are introduced, the model retains parameters associated with previously learned outputs while expanding the architecture.
 
-This approach is intended to allow the early minority classes to influence the learned network before the majority classes dominate the number of training examples. At the same time, the architecture is not fixed in advance. Capacity is added only when the current network is still considered underfit.
+The output layer is expanded by one neuron whenever a new class is introduced. Hidden-layer capacity is increased separately. The model begins with no hidden neurons and adds one hidden neuron at a time only while the current stage remains underfit. This allows the model complexity to grow with the number of active classes instead of selecting one large architecture in advance.
 
-\subsection{Performance Measures}
+\subsection{Underfitting, Overfitting, and Early Stopping}
 
-\textbf{Macro recall} is the primary performance measure. Recall is calculated separately for each class and macro recall gives each class equal importance when these values are combined. This is appropriate for the present objective because a class with very few observations should not contribute less simply because it is rare \cite{kelleher}.
+Underfitting occurs when the network has insufficient capacity or training progress to model the data adequately. Overfitting occurs when training performance continues to improve while performance on unseen validation data no longer follows the same improvement $^{\cite{kelleher}}$. Both are relevant to the incremental procedure because hidden neurons should be added only when additional model capacity is justified.
 
-\textbf{Accuracy} is retained as a secondary measure because it indicates the fraction of all test observations classified correctly. It is not used as the primary selection criterion because the largest classes dominate the total number of observations.
-
-\textbf{Macro precision} and \textbf{macro F1} provide additional class-balanced views of the predictions. Macro F1 is useful for identifying whether changes that improve recall also substantially reduce precision. \textbf{Weighted F1} is also reported because it gives more influence to the larger classes and therefore provides a useful contrast with macro F1.
-
-Finally, \textbf{per-class recall} is examined directly. This is necessary because a change in macro recall can be produced by large improvements in a small number of classes, small improvements across many classes, or trade-offs in which some classes improve while others deteriorate.
+Early stopping is used during every individual training attempt. Validation loss is monitored after each epoch, and the parameters producing the lowest validation loss are retained. Training stops after a fixed number of epochs without sufficient validation-loss improvement. This limits unnecessary training and reduces the chance of continuing to optimise a model after its validation performance has stopped improving.
 
 \section{Implementation} % aka Implementation
 
@@ -133,65 +135,67 @@ Finally, \textbf{per-class recall} is examined directly. This is necessary becau
 
 \subsection{Dataset}
 
-The dataset is a modified version of UNSW-NB15, a network-intrusion dataset containing normal network activity and several categories of attack traffic \cite{unsw-nb15}. The modified dataset used here contains 257\,673 observations, 44 columns before preprocessing, and ten target classes labelled 0--9.
+The dataset is a modified version of UNSW-NB15, a network-intrusion dataset containing normal traffic and multiple categories of attack traffic $^{\cite{unsw-nb15}}$. The modified dataset contains 257\,673 observations, 44 columns before preprocessing, and ten target classes labelled 0--9.
 
-Table~\ref{tab:class_distribution} shows the full class distribution and the stratified training, validation, and test partitions. The imbalance is substantial. Class 7 contains only 174 observations in the full dataset, compared with 93\,000 observations for class 0.
+\hyperref[tab:class_distribution]{Table \ref*{tab:class_distribution}} gives the full distribution together with the stratified training, validation, and test partitions. The imbalance is substantial: class 7 contains 174 observations in the full dataset, while class 0 contains 93\,000.
 
 \begin{table}[H]
     \centering
     \caption{Class distribution before and after the data split.}
     \label{tab:class_distribution}
     \scriptsize
-    \begin{tabular}{rrrrr}
+    \begin{tabular}{rlrrrr}
         \toprule
-        Class & Full & Train & Validation & Test \\
+        Class & Category & Full & Train & Validation & Test \\
         \midrule
-        0 & 93000 & 65100 & 13950 & 13950 \\
-        1 & 13987 & 9791 & 2098 & 2098 \\
-        2 & 2329 & 1630 & 350 & 349 \\
-        3 & 16353 & 11447 & 2453 & 2453 \\
-        4 & 44525 & 31167 & 6679 & 6679 \\
-        5 & 2677 & 1874 & 402 & 401 \\
-        6 & 24246 & 16972 & 3637 & 3637 \\
-        7 & 174 & 122 & 26 & 26 \\
-        8 & 1511 & 1058 & 226 & 227 \\
-        9 & 58871 & 41210 & 8830 & 8831 \\
+        0 & Normal & 93000 & 65100 & 13950 & 13950 \\
+        1 & Reconnaissance & 13987 & 9791 & 2098 & 2098 \\
+        2 & Backdoor & 2329 & 1630 & 350 & 349 \\
+        3 & DoS & 16353 & 11447 & 2453 & 2453 \\
+        4 & Exploits & 44525 & 31167 & 6679 & 6679 \\
+        5 & Analysis & 2677 & 1874 & 402 & 401 \\
+        6 & Fuzzers & 24246 & 16972 & 3637 & 3637 \\
+        7 & Worms & 174 & 122 & 26 & 26 \\
+        8 & Shellcode & 1511 & 1058 & 226 & 227 \\
+        9 & Generic & 58871 & 41210 & 8830 & 8831 \\
         \bottomrule
     \end{tabular}
 \end{table}
 
-Figure~\ref{fig:class_distribution} shows the same imbalance on a logarithmic scale.
+\hyperref[fig:class_distribution]{Figure \ref*{fig:class_distribution}} shows the same imbalance on a logarithmic vertical axis.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=\columnwidth]{outputFiles/out_figures/class_distribution.png}
-    \caption{Number of observations in each target class. A logarithmic vertical axis is used because of the large difference between the smallest and largest classes.}
+    \caption{Number of observations in each target class.}
     \label{fig:class_distribution}
 \end{figure}
 
 \subsection{Preprocessing}
 
-The preprocessing configuration is fixed for the baseline and incremental approaches so that preprocessing does not become an additional experimental variable. The fields \texttt{id}, \texttt{sbytes}, \texttt{synack}, and \texttt{ackdat} are removed.
+The preprocessing configuration is fixed for both approaches so that preprocessing does not become another experimental variable. The field \texttt{id} is removed because it is an identifier rather than a meaningful traffic measurement. The fields \texttt{sbytes}, \texttt{synack}, and \texttt{ackdat} are also removed to reduce redundant input information carried into the neural network.
 
-The numerical fields \texttt{spkts}, \texttt{dpkts}, \texttt{sload}, \texttt{dload}, \texttt{sinpkt}, \texttt{dinpkt}, \texttt{sjit}, \texttt{djit}, \texttt{rate}, \texttt{response\_body\_len}, \texttt{dur}, and \texttt{tcprtt} are transformed using \texttt{log1p}. These fields contain large positive ranges and the transformation reduces the influence of extreme magnitudes before standardisation.
+The numerical fields \texttt{spkts}, \texttt{dpkts}, \texttt{sload}, \texttt{dload}, \texttt{sinpkt}, \texttt{dinpkt}, \texttt{sjit}, \texttt{djit}, \texttt{rate}, \texttt{response\_body\_len}, \texttt{dur}, and \texttt{tcprtt} are transformed using \texttt{log1p}. These selected positive-valued traffic measurements contain large ranges, and the transformation compresses large values before standardisation.
 
-Missing numerical values are replaced with the median of the training feature. All numerical features are then standardised using \texttt{StandardScaler}. The categorical fields \texttt{proto}, \texttt{state}, and \texttt{service} use most-frequent imputation followed by one-hot encoding. The preprocessor is fitted only to the training partition and then applied unchanged to validation and test data. The preprocessing components are implemented using scikit-learn \cite{scikit-learn}.
+Missing numerical values are replaced with the median calculated from the training partition. Numerical features are then standardised using \texttt{StandardScaler}. This prevents features with larger numerical scales from dominating the gradient updates solely because of their magnitude. The categorical fields \texttt{proto}, \texttt{state}, and \texttt{service} use most-frequent imputation followed by one-hot encoding because the neural network requires numerical inputs.
+
+The preprocessing transformer is fitted only on the training partition and is then applied unchanged to validation and test data. This prevents information from the validation or test partitions from influencing the transformation learned during preprocessing. The preprocessing components are implemented with scikit-learn $^{\cite{scikit-learn}}$.
 
 \subsection{Network and Training}
 
-The neural networks are implemented using PyTorch \cite{pytorch}. A network with zero hidden neurons is implemented as a direct linear mapping from input features to output classes. When a hidden layer is present, it contains the selected number of hidden neurons followed by a \texttt{tanh} activation and a linear output layer.
+The models are implemented in PyTorch $^{\cite{pytorch}}$. A network with zero hidden neurons is represented by a direct linear mapping from the processed input vector to the active output classes. When hidden neurons are present, the network contains one hidden layer followed by a \texttt{tanh} activation and a linear output layer.
 
-Cross-entropy loss is minimised using Adam with a learning rate of 0.001 and no weight decay. Mini-batches contain 512 observations. Training is allowed to continue for at most 200 epochs. Early stopping monitors validation loss. A decrease smaller than $10^{-4}$ is not counted as an improvement, and training stops after eight consecutive epochs without sufficient improvement. The parameters from the epoch with the best validation loss are restored before the trained model is evaluated.
+Training minimises cross-entropy loss using Adam with a learning rate of 0.001 and no weight decay. Mini-batches contain 512 observations. Each individual training attempt is allowed at most 200 epochs. Early stopping monitors validation loss, with an improvement threshold of $10^{-4}$ and a patience of eight epochs. The parameter state with the lowest validation loss is restored before the model is evaluated.
 
 \subsection{Baseline Network}
 
-The baseline is trained on all ten classes from the beginning and uses no method to correct class imbalance. Candidate hidden-layer sizes are 0, 16, 32, 36, 40, and 64 neurons. Each candidate is trained and evaluated on the validation set. The candidate with the highest validation macro recall is selected; validation macro F1 is used as the secondary criterion if required.
+The baseline network is trained on all ten classes from the beginning and does not use any method to correct the class distribution. The candidate hidden-layer sizes are 0, 16, 32, 36, 40, and 64 neurons.
 
-The test set is not used to choose the hidden-layer size. It is evaluated only after the best candidate has been selected for a trial.
+Each candidate is trained independently. The candidate with the highest validation macro recall is selected, with validation macro F1 used as a secondary criterion. The test partition is not used during this selection process.
 
 \subsection{Incremental Network}
 
-The incremental class order is determined from the number of observations in the training partition. The resulting order is shown in Table~\ref{tab:incremental_order}.
+The incremental class order is determined only from the training partition. Classes are sorted from the least to the most frequent, producing the order in \hyperref[tab:incremental_order]{Table \ref*{tab:incremental_order}}.
 
 \begin{table}[H]
     \centering
@@ -200,7 +204,7 @@ The incremental class order is determined from the number of observations in the
     \scriptsize
     \begin{tabular}{rrr}
         \toprule
-        Stage introduced & Class & Training observations \\
+        Introduction order & Class & Training observations \\
         \midrule
         1 & 7 & 122 \\
         2 & 8 & 1058 \\
@@ -216,61 +220,88 @@ The incremental class order is determined from the number of observations in the
     \end{tabular}
 \end{table}
 
-Training starts using classes 7 and 8 with no hidden neurons. When a stage is evaluated, the difference between training and validation macro recall is first used to detect overfitting. A gap of at least 0.15 is treated as overfitting. If the training macro recall reaches at least 0.85 without this gap, the current capacity is treated as acceptable.
+Training begins using classes 7 and 8 with no hidden neurons. When another class is introduced, the output layer is enlarged by one neuron while the weights and biases belonging to existing outputs are retained. The new output neuron is newly initialised.
 
-If neither condition is reached, hidden-layer growth is controlled by validation macro recall. An improvement of at least 0.01 over the best validation macro recall observed during the current stage resets the stagnation counter. Smaller improvements may still be retained as the best model, but do not reset the counter. Six consecutive attempts without an improvement of at least 0.01 cause the stage to be treated as stagnated. If the model remains underfit, one hidden neuron is added and the stage is trained again.
+When hidden-layer growth is required, one hidden neuron is added. After the hidden layer already exists, the existing hidden and output weights are copied into the enlarged layers so that previously learned parameters are retained. The transition from zero to one hidden neuron necessarily changes the architecture from a direct linear model to a one-hidden-layer network.
 
-When stagnation occurs, the network is restored to the hidden-layer size that produced the best validation macro recall during that stage before the next class is introduced. The process continues until all ten output classes have been added. A maximum of 256 hidden neurons is allowed, although the final networks observed in the experiments were substantially smaller.
+The fit state is determined using training and validation macro recall. A training-validation recall gap of at least 0.15 is treated as overfitting. A training macro recall of at least 0.85 without this gap is treated as acceptable. Otherwise, the model remains underfit unless validation improvement has stagnated.
+
+A validation macro-recall increase of at least 0.01 over the best result seen during the current stage resets the stagnation counter. Six consecutive attempts without such an improvement end hidden-layer growth for that stage. Smaller improvements are still retained if they represent the best validation result, but they do not reset the counter. When stagnation occurs, the best model found during the stage is restored before the next class is introduced. A maximum of 256 hidden neurons is allowed.
 
 \section{Empirical Process}
 
 \subsection{Data Partition}
 
-The data is split once using stratified sampling and a random seed of 42. Seventy percent of the data is used for training, 15\% for validation, and 15\% for final testing. The same partition is used for all trials so that differences between trials result from network initialisation and stochastic training rather than different test observations.
+The dataset is split once using stratified sampling and a random seed of 42. Seventy percent of the observations are used for training, 15\% for validation, and 15\% for final testing. Stratification preserves the class proportions in all three partitions.
 
-Preprocessing is also fitted once to the training data before the repeated trials. The transformed training, validation, and test data are reused for both approaches.
+The same split is used for every repeated trial. Preprocessing is also fitted once using the training data and the resulting transformed datasets are reused. The repeated trials therefore vary the stochastic training process rather than changing which observations are used for evaluation.
 
 \subsection{Repeated Trials}
 
-Neural-network training is sensitive to random parameter initialisation and the order in which mini-batches are presented. A single run can therefore produce an unusually strong or weak result. To avoid drawing conclusions from one local solution, the complete baseline and incremental procedures are repeated using different random seeds.
+Neural-network training depends on random parameter initialisation and shuffled mini-batch order. One run can therefore reach a better or worse local solution than another. To reduce the influence of a single run, the complete baseline and incremental procedures are repeated with different random seeds.
 
-A total of 60 completed paired trials are used in the final comparison. Seeds 42 through 101 are represented. In each trial, both approaches are evaluated and their final test metrics are stored separately. Results are then compared using the mean and standard deviation across trials. The individual trials are retained in all figures rather than being replaced by a single averaged curve.
+A total of 60 completed paired trials are used. Seeds 42 through 101 are represented. In each trial, both the baseline procedure and the incremental procedure are run and their final test results are saved separately.
 
-No formal significance test is used. The comparison is descriptive: mean performance, variability, the difference between the two methods in each trial, and the number of trials in which the incremental model improves or deteriorates are reported.
+The final comparison is descriptive rather than based on advanced statistical testing. Mean and standard deviation across the 60 trials are reported, while the run-level figures retain every individual trial. The number of trials in which one approach improves or deteriorates is also reported.
+
+A secondary experiment was then performed on 37 matched seeds (42--78). In these runs, recall averaged only over classes 1--8 was used for baseline model selection and for the incremental growth decisions. Normal (class 0) and Generic (class 9) were excluded from this selection measure. For a fair comparison, the corresponding 37 models from the original experiment were re-evaluated using the same classes 1--8 recall measure.
+
+\subsection{Performance Measures}
+
+Macro recall is the primary performance measure because each target class contributes equally, independently of its frequency. For class $c$, recall is
+
+\begin{equation}
+R_c = \frac{TP_c}{TP_c + FN_c},
+\end{equation}
+
+where $TP_c$ is the number of correctly identified examples of class $c$ and $FN_c$ is the number of examples from class $c$ assigned to another class. With $K$ target classes, macro recall is
+
+\begin{equation}
+R_{\mathrm{macro}} = \frac{1}{K}\sum_{c=1}^{K} R_c.
+\end{equation}
+
+For the secondary selection experiment, attack-only recall is defined as the mean recall over classes 1--8, excluding Normal and Generic:
+
+\begin{equation}
+R_{\mathrm{attack}} = \frac{1}{8}\sum_{c=1}^{8} R_c.
+\end{equation}
+
+This measure is used only for the secondary selection check; ten-class macro recall remains the primary measure for the main experiment.
+
+Macro precision and macro F1 are used as secondary class-balanced measures. For each class,
+
+\begin{equation}
+P_c = \frac{TP_c}{TP_c + FP_c},
+\end{equation}
+
+and
+
+\begin{equation}
+F1_c = 2\frac{P_cR_c}{P_c+R_c}.
+\end{equation}
+
+Macro precision and macro F1 are the unweighted means of their corresponding class-specific values. Accuracy is also recorded to identify whether improvements in minority-class behaviour are obtained at the cost of overall correctness. Weighted F1 is included as a contrast because it gives larger classes more influence than macro F1. Per-class precision, recall, and F1 are examined directly to determine where the aggregate changes originate $^{\cite{kelleher}}$.
 
 \subsection{Baseline Search}
 
-For every trial, each baseline hidden-layer candidate is trained independently. The validation macro recall for every candidate is stored. Figure~\ref{fig:baseline_hidden_search} displays the individual validation searches over all completed trials.
+For every trial, all baseline hidden-layer candidates are trained independently. Their validation results are recorded before the best candidate is selected. \hyperref[fig:baseline_hidden_search]{Figure \ref*{fig:baseline_hidden_search}} shows validation macro recall over the tested hidden-layer sizes for all 60 trials.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=\columnwidth]{outputFiles/out_figures/baseline_hidden_search.png}
-    \caption{Validation macro recall obtained by the baseline hidden-layer search in each trial. Each line represents an individual trial.}
+    \caption{Baseline validation macro recall for each hidden-layer search. Each line represents one trial.}
     \label{fig:baseline_hidden_search}
 \end{figure}
 
 \subsection{Incremental Growth}
 
-For the incremental approach, the hidden-layer size, training macro recall, validation macro recall, and fit state are saved after every architecture attempt. This allows the architecture-growth process to be inspected rather than considering only the final classifier.
-
-Figure~\ref{fig:hidden_growth} shows the hidden-layer size associated with the best validation macro recall at each number of active classes. Each line represents one trial.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=\columnwidth]{outputFiles/out_figures/incremental_hidden_growth.png}
-    \caption{Hidden-layer growth as classes are introduced. Each line represents one individual trial.}
-    \label{fig:hidden_growth}
-\end{figure}
-
-\subsection{Evaluation}
-
-Macro recall is the primary test measure. The final analysis also records accuracy, macro precision, macro F1, weighted F1, and recall for each class. The results are compared over all 60 paired trials. Runtime and final hidden-layer size are included as secondary implementation measures.
+For the incremental procedure, every architecture attempt stores the number of active classes, hidden-layer size, training macro recall, validation macro recall, each active class's validation recall, and the fit state. This makes it possible to inspect not only whether the overall stage improves as hidden neurons are added, but also whether the recall of previously introduced classes improves or deteriorates as the architecture grows and further classes are introduced. The results from this process are analysed in the Hidden-Layer Growth subsection.
 
 \section{Results}
 
-\subsection{Overall Comparison}
+\subsection{Overall Performance}
 
-Table~\ref{tab:overall_results} summarises the main test metrics over the 60 paired trials. The incremental approach produced the strongest average macro recall and macro F1, while mean accuracy changed very little.
+\hyperref[tab:overall_results]{Table \ref*{tab:overall_results}} summarises the final test metrics over the 60 paired trials. Incremental learning produced the higher mean macro recall, macro precision, macro F1, weighted F1, and accuracy, although the change in accuracy was very small.
 
 \begin{table*}[!t]
     \centering
@@ -288,118 +319,151 @@ Table~\ref{tab:overall_results} summarises the main test metrics over the 60 pai
         0.4855 (0.0083) &
         0.7887 (0.0031) \\
         Incremental &
-        \textbf{0.8072} (0.0021) &
-        \textbf{0.6273} (0.0189) &
-        \textbf{0.4857} (0.0061) &
-        \textbf{0.5007} (0.0073) &
-        \textbf{0.7919} (0.0030) \\
+        0.8072 (0.0021) &
+        0.6273 (0.0189) &
+        0.4857 (0.0061) &
+        0.5007 (0.0073) &
+        0.7919 (0.0030) \\
         \midrule
         Mean change &
         +0.0005 &
         +0.0124 &
-        \textbf{+0.0138} &
+        +0.0138 &
         +0.0152 &
         +0.0033 \\
         \bottomrule
     \end{tabular}
 \end{table*}
 
-Macro recall increased from 0.4719 to 0.4857 on average, a mean increase of 0.0138. More importantly for the consistency of the result, incremental learning produced a higher macro recall in 56 of the 60 trials. It produced a lower macro recall in only four trials.
+Macro recall increased by 0.0138 on average, from 0.4719 to 0.4857. Incremental learning achieved the higher macro recall in 56 of the 60 paired trials and the lower value in four. Macro F1 increased by 0.0152 on average and improved in 52 trials. Macro precision improved in 40 trials, and weighted F1 improved in 46.
 
-Macro F1 increased by 0.0152 on average and improved in 52 of 60 trials. Macro precision increased by 0.0124 on average and improved in 40 trials. Weighted F1 also increased slightly, from 0.7887 to 0.7919.
+The mean accuracy changed by only 0.0005. Incremental learning produced higher accuracy in 32 trials, lower accuracy in 27, and the same reported value in one. The principal difference between the approaches is therefore not a large change in total accuracy, but a shift in how performance is distributed across the individual classes.
 
-Accuracy changed very little. The mean baseline accuracy was 0.8067 and the mean incremental accuracy was 0.8072. Incremental learning improved accuracy in 32 trials, reduced it in 27, and produced the same reported value in one. The near-zero average difference indicates that the macro-recall improvement was not obtained through a large loss in overall classification accuracy.
+\subsection{Attack-Only Selection Check}
 
-Figure~\ref{fig:macro_recall_runs} shows the macro recall for every trial. The repeated-trial results remain close together for each method, but the incremental curve is above the baseline curve for most runs.
-
-\begin{figure*}[!t]
-    \centering
-    \includegraphics[width=0.88\textwidth]{outputFiles/out_figures/macro_recall_runs.png}
-    \caption{Test macro recall for every paired trial. Each point corresponds to one completed test.}
-    \label{fig:macro_recall_runs}
-\end{figure*}
-
-Figure~\ref{fig:macro_recall_improvement} shows the paired macro-recall difference directly. Positive bars indicate trials in which the incremental model performed better.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=\columnwidth]{outputFiles/out_figures/macro_recall_improvement_runs.png}
-    \caption{Incremental minus baseline macro recall for every trial.}
-    \label{fig:macro_recall_improvement}
-\end{figure}
-
-The same comparison for macro F1 is shown in Fig.~\ref{fig:macro_f1_runs}. The incremental model is again stronger in most trials.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=\columnwidth]{outputFiles/out_figures/macro_f1_runs.png}
-    \caption{Test macro F1 for the baseline and incremental approaches in every trial.}
-    \label{fig:macro_f1_runs}
-\end{figure}
-
-Accuracy is shown in Fig.~\ref{fig:accuracy_runs}. Unlike macro recall and macro F1, neither method has a consistent advantage in accuracy, which agrees with the very small difference between their means.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=\columnwidth]{outputFiles/out_figures/accuracy_runs.png}
-    \caption{Test accuracy for the baseline and incremental approaches in every trial.}
-    \label{fig:accuracy_runs}
-\end{figure}
-
-\subsection{Per-Class Recall}
-
-Table~\ref{tab:per_class_recall} compares the mean recall of every class. Incremental learning improved the mean recall of eight of the ten classes. The two reductions occurred for classes 0 and 4.
+The main experiment showed that incremental learning improved macro recall, but a secondary check tested whether the model-selection criterion itself could be improved by ignoring Normal and Generic. The 37 attack-priority runs were compared only with the corresponding 37 original seeds. For fairness, the original models were re-evaluated using recall over classes 1--8 rather than their ten-class macro recall.
 
 \begin{table}[H]
     \centering
-    \caption{Mean recall by class across 60 trials.}
-    \label{tab:per_class_recall}
+    \caption{Recall comparison for the original and attack-priority experiments. Values in parentheses are changes from the corresponding matched original model.}
+    \label{tab:attack_selection}
     \scriptsize
-    \begin{tabular}{rrrr}
+    \resizebox{\columnwidth}{!}{
+    \begin{tabular}{llrc}
         \toprule
-        Class & Baseline & Incremental & Change \\
+        Configuration & Evaluation & Trials & Mean recall \\
         \midrule
-        0 & \textbf{0.9353} & 0.9298 & -0.0055 \\
-        1 & 0.7403 & \textbf{0.7527} & +0.0123 \\
-        2 & 0.0178 & \textbf{0.0375} & +0.0197 \\
-        3 & 0.1632 & \textbf{0.1945} & +0.0312 \\
-        4 & \textbf{0.8458} & 0.8321 & -0.0137 \\
-        5 & 0.0342 & \textbf{0.0395} & +0.0053 \\
-        6 & 0.4999 & \textbf{0.5167} & +0.0168 \\
-        7 & 0.1192 & \textbf{0.1295} & +0.0103 \\
-        8 & 0.3894 & \textbf{0.4507} & +0.0613 \\
-        9 & 0.9736 & \textbf{0.9739} & +0.0002 \\
+        Original baseline & All 10 classes & 60 & 0.4719 \\
+        Original incremental & All 10 classes & 60 & 0.4857 \\
+        \midrule
+        Original baseline & Classes 1--8 & 37 & 0.3528 \\
+        Attack-priority baseline & Classes 1--8 & 37 & 0.3524 (-0.0004) \\
+        Original incremental & Classes 1--8 & 37 & 0.3697 \\
+        Attack-priority incremental & Classes 1--8 & 37 & 0.3703 (+0.0005) \\
         \bottomrule
-    \end{tabular}
+    \end{tabular}}
 \end{table}
 
-Class 8 produced the largest average improvement. Its recall increased from 0.3894 to 0.4507, a difference of 0.0613, and the incremental model performed better for this class in 56 of the 60 trials. Class 3 improved by 0.0312 on average, while class 2 improved by 0.0197.
+The attack-priority criterion therefore did not produce a valuable increase in performance. Baseline attack-only recall decreased by 0.0004, while incremental attack-only recall increased by only 0.0005. The baseline hidden-layer choice changed in only 2 of 37 runs, and the final incremental hidden-layer size changed in only 8. For incremental learning, attack-priority selection improved attack-only recall in five runs, produced the same result in 29, and reduced it in three. For the baseline it produced the same result in 35 runs and a lower result in two.
 
-The two decreases are concentrated in more frequent classes. Class 4 recall fell by 0.0137 and class 0 recall fell by 0.0055. Class 0 is the largest class in the dataset. The reduction in these classes is therefore a trade-off rather than a uniform improvement across all outputs. However, the changes are small enough that total accuracy remains almost unchanged while macro recall increases.
-
-Figure~\ref{fig:class_heatmap} shows the class-recall change for every run and class. This plot makes it possible to see whether a class improvement is repeated across trials or produced by a small number of unusually strong runs.
-
-\begin{figure*}[!t]
+\begin{table}[H]
     \centering
-    \includegraphics[width=0.88\textwidth]{outputFiles/out_figures/class_recall_difference_heatmap.png}
-    \caption{Per-class recall difference for every trial. Positive values indicate higher recall from incremental learning.}
-    \label{fig:class_heatmap}
-\end{figure*}
+    \caption{Mean per-class recall of the selected attack-priority models across 37 matched runs. Parentheses show the change from the corresponding original model.}
+    \label{tab:attack_class_recall}
+    \scriptsize
+    \resizebox{\columnwidth}{!}{
+    \begin{tabular}{rlcc}
+        \toprule
+        Class & Category & Baseline & Incremental \\
+        \midrule
+        0 & Normal & 0.9339 (-0.0004) & 0.9279 (-0.0024) \\
+        1 & Reconnaissance & 0.7412 (-0.0001) & 0.7536 (+0.0007) \\
+        2 & Backdoor & 0.0170 (-0.0007) & 0.0366 (-0.0006) \\
+        3 & DoS & 0.1728 (+0.0039) & 0.1942 (-0.0082) \\
+        4 & Exploits & 0.8409 (-0.0024) & 0.8318 (+0.0041) \\
+        5 & Analysis & 0.0342 (+0.0001) & 0.0408 (+0.0002) \\
+        6 & Fuzzers & 0.5052 (+0.0015) & 0.5248 (+0.0086) \\
+        7 & Worms & 0.1185 (-0.0031) & 0.1320 (+0.0010) \\
+        8 & Shellcode & 0.3896 (-0.0019) & 0.4484 (-0.0017) \\
+        9 & Generic & 0.9735 (-0.0001) & 0.9740 (+0.0002) \\
+        \bottomrule
+    \end{tabular}}
+\end{table}
 
-Figure~\ref{fig:class_recall_differences} presents the same differences as individual trial points. Class 8 shows a particularly consistent positive shift, while classes 0 and 4 more often favour the baseline.
+The class-level changes are small and mixed rather than consistently positive. The main incremental advantage is already present when the original models are evaluated on classes 1--8: their mean attack-only recall rises from 0.3528 for the baseline to 0.3697 for incremental learning. Replacing the selection criterion changes this to 0.3524 and 0.3703 respectively. The secondary experiment is therefore not used in the remaining interpretation; the main conclusions are based on the original 60-run experiment.
+
+\subsection{Class-Level Performance}
+
+The aggregate metrics hide substantial differences between classes. \hyperref[tab:class_metrics]{Table \ref*{tab:class_metrics}} gives the mean precision, recall, and F1 for every class under both approaches. The standard deviation across the 60 trials is shown in parentheses.
+
+\begin{table*}[!t]
+    \centering
+    \caption{Mean class-level test performance across 60 trials. Standard deviations are shown in parentheses.}
+    \label{tab:class_metrics}
+    \scriptsize
+    \resizebox{\textwidth}{!}{
+    \begin{tabular}{rlrcccccc}
+        \toprule
+        Class & Category & Support & Baseline precision & Incremental precision & Baseline recall & Incremental recall & Baseline F1 & Incremental F1 \\
+        \midrule
+        0 & Normal & 13950 & 0.8906 (0.0055) & 0.8912 (0.0052) & 0.9353 (0.0065) & 0.9298 (0.0072) & 0.9124 (0.0012) & 0.9101 (0.0017) \\
+        1 & Reconnaissance & 2098 & 0.7986 (0.0188) & 0.8198 (0.0136) & 0.7403 (0.0151) & 0.7527 (0.0102) & 0.7681 (0.0066) & 0.7846 (0.0036) \\
+        2 & Backdoor & 349 & 0.3343 (0.1787) & 0.3946 (0.0966) & 0.0178 (0.0102) & 0.0375 (0.0082) & 0.0335 (0.0189) & 0.0680 (0.0139) \\
+        3 & DoS & 2453 & 0.3683 (0.0218) & 0.3655 (0.0140) & 0.1632 (0.0548) & 0.1945 (0.0732) & 0.2198 (0.0497) & 0.2454 (0.0553) \\
+        4 & Exploits & 6679 & 0.6197 (0.0085) & 0.6257 (0.0122) & 0.8458 (0.0291) & 0.8321 (0.0361) & 0.7149 (0.0054) & 0.7136 (0.0064) \\
+        5 & Analysis & 401 & 0.6102 (0.1698) & 0.6164 (0.1363) & 0.0342 (0.0099) & 0.0395 (0.0095) & 0.0644 (0.0175) & 0.0740 (0.0172) \\
+        6 & Fuzzers & 3637 & 0.6291 (0.0161) & 0.6282 (0.0150) & 0.4999 (0.0235) & 0.5167 (0.0230) & 0.5565 (0.0107) & 0.5664 (0.0098) \\
+        7 & Worms & 26 & 0.4558 (0.1435) & 0.4637 (0.1087) & 0.1192 (0.0366) & 0.1295 (0.0308) & 0.1864 (0.0522) & 0.2003 (0.0427) \\
+        8 & Shellcode & 227 & 0.4525 (0.0185) & 0.4763 (0.0238) & 0.3894 (0.0344) & 0.4507 (0.0250) & 0.4174 (0.0196) & 0.4622 (0.0121) \\
+        9 & Generic & 8831 & 0.9897 (0.0012) & 0.9911 (0.0015) & 0.9736 (0.0018) & 0.9739 (0.0016) & 0.9816 (0.0007) & 0.9824 (0.0008) \\
+        \bottomrule
+    \end{tabular}}
+\end{table*}
+
+Incremental learning improved mean recall for classes 1, 2, 3, 5, 6, 7, 8, and 9. The largest increase occurred for Shellcode (class 8), where recall increased from 0.3894 to 0.4507. DoS (class 3) increased from 0.1632 to 0.1945, and Backdoor (class 2) increased from 0.0178 to 0.0375.
+
+The largest recall reductions occurred for Exploits (class 4) and Normal (class 0). Exploits decreased from 0.8458 to 0.8321, while Normal decreased from 0.9353 to 0.9298. Normal is the largest class in the dataset. The incremental procedure therefore appears to trade a small amount of recall on some frequent classes for improved recall on several less frequent classes.
+
+The precision changes show that the recall gains were not obtained simply by predicting the minority classes more aggressively without regard to false positives. Precision increased for classes 0, 1, 2, 4, 5, 7, 8, and 9. Class 3 precision decreased slightly, while class 6 precision remained almost unchanged. Class 8 improved in precision, recall, and F1 simultaneously.
+
+\hyperref[fig:baseline_class_runs]{Figure \ref*{fig:baseline_class_runs}} shows the per-class test recall for every baseline trial. The individual trials are retained rather than being replaced by an averaged curve.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=\columnwidth]{outputFiles/out_figures/class_recall_difference_runs.png}
-    \caption{Incremental minus baseline class recall. Individual points represent individual trials.}
-    \label{fig:class_recall_differences}
+    \includegraphics[width=\columnwidth]{outputFiles/out_figures/baseline_class_recall_runs.png}
+    \caption{Per-class test recall across the 60 baseline trials. The legend includes the numeric class and attack-category name.}
+    \label{fig:baseline_class_runs}
 \end{figure}
 
-The very low recall of classes 2, 5, and 7 remains a limitation of both methods. Incremental learning improves their mean recall, but it does not remove the difficulty caused by the small number of available examples and overlap with the remaining traffic classes. In particular, class 7 contains only 122 training observations and 26 test observations, so a small number of predictions can produce a noticeable change in its reported recall.
+The repeated baseline trials show that Normal (class 0) and Generic (class 9) remain consistently strong, while Backdoor (class 2), Analysis (class 5), and Worms (class 7) remain difficult. The incremental procedure is examined differently below: rather than showing only the final test recall, its validation recall is followed throughout hidden-layer growth so that changes in previously introduced classes remain visible as new classes are added.
+
+\subsection{Confusion-Matrix Analysis}
+
+Per-class recall identifies which classes are difficult, but it does not show where their missed observations are assigned. To examine this, each confusion matrix was normalised by true-class row and the normalised matrices were averaged across the 60 trials.
+
+\hyperref[fig:baseline_confusion]{Figure \ref*{fig:baseline_confusion}} shows the baseline result. The most important off-diagonal pattern is that classes 2, 3, 5, and 7 are frequently predicted as class 4. On average, approximately 67\% of class-2 observations, 77\% of class-3 observations, 61\% of class-5 observations, and 85\% of class-7 observations are assigned to class 4 by the baseline. Class 8 is most commonly confused with class 1.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\columnwidth]{outputFiles/out_figures/baseline_mean_confusion.png}
+    \caption{Mean row-normalised baseline confusion matrix across 60 trials.}
+    \label{fig:baseline_confusion}
+\end{figure}
+
+The incremental matrix in \hyperref[fig:incremental_confusion]{Figure \ref*{fig:incremental_confusion}} retains the same main confusion patterns but reduces several of them. The mean proportion of class 2 predicted as class 4 falls from approximately 0.67 to 0.63, class 3 predicted as class 4 falls from 0.77 to 0.74, and class 5 predicted as class 4 falls from 0.61 to 0.58. The class-8 to class-1 confusion decreases more clearly, from approximately 0.28 to 0.21. These changes are consistent with the higher recall for these classes.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\columnwidth]{outputFiles/out_figures/incremental_mean_confusion.png}
+    \caption{Mean row-normalised incremental confusion matrix across 60 trials.}
+    \label{fig:incremental_confusion}
+\end{figure}
+
+The confusion matrices also show why the overall improvement remains modest. The difficult classes are not evenly distributed around several alternatives; many are repeatedly absorbed by class 4. The incremental procedure reduces some of these errors but does not remove the underlying overlap between these target classes.
 
 \subsection{Hidden-Layer Growth}
 
-The incremental model begins with no hidden neurons. Across all trials, the best validation result for the first two classes and the first three classes was obtained without a hidden layer. Additional capacity became useful from the four-class stage onward.
+The incremental model begins with no hidden neurons. For the first two and three active classes, the best validation macro recall was obtained with no hidden layer in every trial. Additional capacity became useful from the four-class stage onward.
 
 \begin{table}[H]
     \centering
@@ -423,45 +487,57 @@ The incremental model begins with no hidden neurons. Across all trials, the best
     \end{tabular}
 \end{table}
 
-The mean best hidden-layer size increased steadily as classes were introduced. By the ten-class stage, the mean was 42.8 neurons. The final incremental architectures ranged from 23 to 64 hidden neurons, with a standard deviation of approximately 8.0.
+The mean best hidden-layer size increases as more classes are introduced. At the final ten-class stage, the mean is 42.8 hidden neurons, with final models ranging from 23 to 64.
 
-The baseline selected an average of 48.3 hidden neurons. A 64-neuron baseline was selected in 26 of the 60 trials, 40 neurons in 14 trials, 36 neurons in 13 trials, 32 neurons in six trials, and 16 neurons in one trial. The incremental approach therefore did not obtain its higher mean macro recall simply by using a larger final network. Its mean final hidden-layer size was actually lower than the mean selected baseline size.
+The baseline selected an average of 48.3 hidden neurons. A 64-neuron baseline was selected in 26 trials, 40 neurons in 14, 36 neurons in 13, 32 neurons in six, and 16 neurons in one. The incremental method therefore did not obtain its higher macro recall by simply producing a larger final network; its average final hidden-layer size was lower.
 
-Figure~\ref{fig:final_hidden_runs} compares the final architecture size in every run.
+\hyperref[fig:final_hidden_runs]{Figure \ref*{fig:final_hidden_runs}} shows the architecture selected in each trial.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=\columnwidth]{outputFiles/out_figures/final_hidden_units_runs.png}
-    \caption{Selected baseline hidden-layer size and final incremental hidden-layer size in each trial.}
+    \caption{Selected baseline hidden-layer size and final incremental hidden-layer size for each trial.}
     \label{fig:final_hidden_runs}
 \end{figure}
 
-Figure~\ref{fig:stage_recall} shows the best validation macro recall found at each number of active classes for every incremental trial. The reduction in validation recall as more classes are introduced demonstrates the increasing difficulty of the classification task.
+\hyperref[fig:incremental_stage_recall]{Figure \ref*{fig:incremental_stage_recall}} shows the best validation macro recall at each active-class stage for all 60 runs. The reduction as classes are added reflects the increasing difficulty of the classification problem because later stages contain more target classes. \hyperref[fig:incremental_class_growth]{Figure \ref*{fig:incremental_class_growth}} supplements this aggregate view by following the validation recall of every active class throughout representative run 41. Run 41 was selected automatically because its final incremental macro recall of 0.4856 was closest to the 60-run mean of 0.4857.
 
-\begin{figure}[H]
+\begin{figure*}[!t]
     \centering
-    \includegraphics[width=\columnwidth]{outputFiles/out_figures/incremental_stage_recall.png}
-    \caption{Best validation macro recall at each incremental stage. Each line represents one trial.}
-    \label{fig:stage_recall}
-\end{figure}
+    \begin{subfigure}[t]{0.49\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{outputFiles/out_figures/incremental_stage_recall.png}
+        \caption{Best validation macro recall at each incremental stage across all 60 runs.}
+        \label{fig:incremental_stage_recall}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.49\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{outputFiles/out_figures/incremental_class_validation_progression_representative.png}
+        \caption{Per-class validation recall throughout representative run 41. Dashed lines mark class introductions and the horizontal tick labels show hidden-layer size.}
+        \label{fig:incremental_class_growth}
+    \end{subfigure}
+    \caption{Incremental validation behaviour at the stage and class levels.}
+    \label{fig:incremental_growth_combined}
+\end{figure*}
 
-\subsection{Interpretation of Incremental Learning}
+The stage-level plot shows a broad loss in macro recall as the number of classes increases, while the class-level plot shows how that loss is distributed. A newly introduced class can cause an immediate reduction in the recall of previously active classes, after which some recover as hidden capacity increases. The later stages therefore involve both learning the newest class and readjusting decision boundaries for classes already present.
 
-The results suggest that the order in which classes are introduced influences the final network. The two minority classes are learned before the large majority classes are present. Later classes are then added without discarding the parameters already learned for the existing outputs. This gives the early classes an opportunity to affect the representation before the training set becomes dominated by classes 9 and 0.
+\subsection{Interpretation}
 
-The largest improvement for class 8 is consistent with this explanation. Class 8 is the second-smallest class and is present from the beginning of incremental training. Its mean recall increases substantially without a corresponding reduction in overall accuracy. Classes 2 and 5 are also introduced early and improve on average, although their absolute recalls remain low.
+The repeated results suggest that the class-introduction order changes the final distribution of predictive performance. The minority classes are learned before the two largest classes are present, and existing parameters are retained as the output layer expands. This allows the early classes to influence the model before the training subset becomes dominated by classes 9 and 0.
 
-The effect is not uniform. Class 4 and class 0 both lose some recall, indicating that the incremental procedure changes the distribution of performance rather than simply improving every decision boundary. This trade-off is reflected more strongly by macro recall than by accuracy because macro recall gives each class equal influence.
+The effect is clearest for Shellcode (class 8), the second-smallest class. Its recall, precision, and F1 all increase under incremental learning. Classes 2, 3, 5, 6, and 7 also improve in recall, although classes 2, 5, and 7 remain difficult in absolute terms.
 
-The magnitude of the overall improvement is modest. An increase of 0.0138 in macro recall would not by itself justify a broad claim that incremental learning solves class imbalance. The repeated trials are more informative: 56 of 60 runs improve macro recall, and the improvement occurs while mean accuracy remains essentially unchanged. The main finding is therefore a consistent shift toward better class-balanced recall rather than a dramatic increase in total predictive performance.
+The improvement is not uniform. Recall decreases for Normal (class 0) and Exploits (class 4), which shows that incremental learning redistributes classification performance rather than improving every decision boundary. This trade-off explains why macro recall improves while accuracy remains almost unchanged.
+
+The magnitude of the overall improvement is limited: mean macro recall increases by 0.0138. However, the direction of the change is consistent across random initialisations, with an improvement in 56 of 60 trials. The result therefore supports a modest but repeatable benefit from the incremental training procedure on this dataset rather than a large improvement produced by one unusually favourable run.
 
 \subsection{Runtime}
 
-The baseline search required an average of approximately 17.8 minutes per trial, while the incremental procedure required approximately 14.8 minutes. A complete paired trial required approximately 32.5 minutes on average.
+The baseline procedure required an average of approximately 17.8 minutes per trial, while the incremental procedure required approximately 14.8 minutes. A complete paired trial required approximately 32.5 minutes.
 
-The baseline procedure trains six separate candidate architectures from the beginning, which explains why it is slower than the incremental procedure despite the incremental model performing many architecture-growth steps. The incremental model reuses previously learned parameters as classes and hidden neurons are added.
-
-Figure~\ref{fig:runtime_runs} shows the runtime of the two procedures for every completed trial.
+The baseline search trains six separate architectures independently from the beginning. The incremental procedure performs many stage-specific training attempts, but retains the architecture and previously learned parameters as it grows. \hyperref[fig:runtime_runs]{Figure \ref*{fig:runtime_runs}} shows the runtime of both procedures across all trials.
 
 \begin{figure}[H]
     \centering
@@ -470,32 +546,68 @@ Figure~\ref{fig:runtime_runs} shows the runtime of the two procedures for every 
     \label{fig:runtime_runs}
 \end{figure}
 
-Runtime is not used as a model-selection criterion, but it provides useful context for the cost of the empirical process. The complete set of 60 paired trials represents substantially more computation than a single baseline/incremental comparison, but it reduces the influence of a favourable or unfavourable random initialisation on the conclusion.
+Runtime is not used as a model-selection criterion. It is reported to show the computational cost of obtaining the repeated empirical evidence rather than relying on a single training run.
 
 \section{Conclusion}
 
-This study compared a conventional feedforward neural network with an incremental class-learning procedure on a highly imbalanced ten-class network-traffic dataset. The baseline was trained on all classes from the start, while the incremental model began with the two least frequent classes and introduced additional classes from least to most frequent. Hidden neurons were added when the current model remained underfit.
+This study compared a conventional feedforward neural network with incremental class learning on a highly imbalanced ten-class network-traffic dataset. Across 60 paired trials, incremental learning increased mean macro recall from 0.4719 to 0.4857 and produced higher macro recall in 56 trials. Mean macro F1 increased from 0.4855 to 0.5007, while accuracy remained almost unchanged at approximately 0.807.
 
-Across 60 paired trials, the incremental approach increased mean macro recall from 0.4719 to 0.4857 and produced higher macro recall in 56 trials. Mean macro F1 increased from 0.4855 to 0.5007. Accuracy remained almost unchanged, increasing from 0.8067 to 0.8072. The largest class-level benefit occurred for class 8, while classes 0 and 4 showed small reductions in recall.
+The class-level results show that the improvement is not uniform. Shellcode obtained the largest recall increase, while Normal and Exploits lost a small amount of recall. The confusion matrices further show that several difficult classes are predominantly confused with Exploits, and that incremental learning reduces some of these errors without removing them completely.
 
-The architecture-growth results showed that the incremental network increased its capacity as new classes were introduced, finishing with an average of 42.8 hidden neurons. This was lower than the baseline mean of 48.3 selected hidden neurons, indicating that the improvement was not caused simply by a larger final model.
+A secondary attack-only selection experiment was performed on 37 matched seeds. When the original models were fairly re-evaluated using classes 1--8 only, attack-only recall was 0.3528 for the baseline and 0.3697 for incremental learning. Replacing macro recall with attack-only recall as the architecture-selection criterion changed these values to 0.3524 and 0.3703. The resulting changes of -0.0004 for the baseline and +0.0005 for incremental learning are not meaningful increases, so the alternative selection criterion does not contribute materially to the main result.
 
-The results therefore support incremental class learning as a useful training strategy for this dataset, but the benefit is limited rather than transformative. It consistently improved the primary class-balanced measure while retaining similar accuracy, yet several rare classes remained difficult to classify. Further investigation could consider alternative criteria for introducing classes or adding hidden capacity, but these were outside the scope of the present experiment.
-
-% \subsection*{AI decleration}
-% AI was used as an advanced Google search option. It was used to explain topics and features in libraries.
-
-%\section{References}
-
+The incremental network finished with an average of 42.8 hidden neurons, compared with 48.3 for the selected baseline networks. The main improvement therefore cannot be explained simply by greater final model capacity. Overall, incremental class learning provided a modest but repeatable improvement in class-balanced performance, while directly prioritising attack-only recall during model selection offered no valuable additional benefit. Future work could instead examine alternative growth thresholds or methods that directly target the persistent confusion between the difficult attack classes and Exploits.
 
 \begin{thebibliography}{9}
 
-\bibitem{scikit-learn}
-Pedregosa, F. et al., 2011. Scikit-learn: Machine learning in Python. \textit{Journal of Machine Learning Research}, 12, pp.2825-2830. Available at: \url{https://scikit-learn.org/stable/}.
+\bibitem{kelleher}
+J. D. Kelleher, B. Mac Namee, and A. D'Arcy,
+\textit{Fundamentals of Machine Learning for Predictive Data Analytics: Algorithms, Worked Examples, and Case Studies},
+2nd ed. Cambridge, MA, USA: MIT Press, 2020.
 
+\bibitem{engelbrecht}
+A. P. Engelbrecht,
+\textit{Computational Intelligence: An Introduction},
+2nd ed. Chichester, U.K.: John Wiley \& Sons, 2007.
+
+\bibitem{he-garcia}
+H. He and E. A. Garcia,
+``Learning from imbalanced data,''
+\textit{IEEE Transactions on Knowledge and Data Engineering},
+vol. 21, no. 9, pp. 1263--1284, 2009,
+doi: 10.1109/TKDE.2008.239.
+
+\bibitem{zhou-cil}
+D.-W. Zhou, Q.-W. Wang, Z.-H. Qi, H.-J. Ye, D.-C. Zhan, and Z. Liu,
+``Class-incremental learning: A survey,''
+\textit{IEEE Transactions on Pattern Analysis and Machine Intelligence},
+vol. 46, no. 12, pp. 9851--9873, 2024,
+doi: 10.1109/TPAMI.2024.3429383.
+
+\bibitem{adam}
+D. P. Kingma and J. Ba,
+``Adam: A method for stochastic optimization,''
+in \textit{Proc. International Conference on Learning Representations (ICLR)}, 2015.
+
+\bibitem{pytorch}
+A. Paszke et al.,
+``PyTorch: An imperative style, high-performance deep learning library,''
+in \textit{Advances in Neural Information Processing Systems 32},
+pp. 8026--8037, 2019.
+
+\bibitem{scikit-learn}
+F. Pedregosa et al.,
+``Scikit-learn: Machine learning in Python,''
+\textit{Journal of Machine Learning Research},
+vol. 12, pp. 2825--2830, 2011.
 
 \bibitem{unsw-nb15}
-Moustafa, N. and Slay, J., 2015. UNSW-NB15 network traffic dataset. \textit{The University of New South Wales}. Available at: \url{https://unsw.edu.au}.
+N. Moustafa and J. Slay,
+``UNSW-NB15: A comprehensive data set for network intrusion detection systems (UNSW-NB15 network data set),''
+in \textit{Proc. 2015 Military Communications and Information Systems Conference (MilCIS)},
+pp. 1--6, 2015,
+doi: 10.1109/MilCIS.2015.7348942.
+
 
 \end{thebibliography}
 

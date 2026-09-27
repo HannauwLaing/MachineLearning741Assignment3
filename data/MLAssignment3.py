@@ -33,9 +33,10 @@ from torch.utils.data import DataLoader, Subset, TensorDataset
 # Added the timing to each run
 
 DATA_FILE = "../data/networkTraffic.csv"
-OUTPUT_ROOT = "../report/outputFiles"
+OUTPUT_ROOT = "../report/outputFiles/"
 OUTPUT_DIR = OUTPUT_ROOT
 TARGET = "attack_cat"
+IGNORED_RECALL_CLASSES = {0, 9}
 DROP_FIELDS = ["id", "sbytes", "synack", "ackdat"]
 LOG1P_FIELDS = [
     "spkts",
@@ -249,9 +250,28 @@ def metrics_from_predictions(y_true, y_pred, class_labels):
         "weighted_f1": f1_score(y_true, y_pred, average="weighted", zero_division=0),
         "balanced_accuracy": balanced_accuracy_score(y_true, y_pred),
     }
+
+    attack_indices = [
+        index
+        for index, label in enumerate(class_labels)
+        if label not in IGNORED_RECALL_CLASSES
+    ]
+
+    if attack_indices:
+        result["attack_macro_recall"] = float(np.mean(recalls[attack_indices]))
+    else:
+        result["attack_macro_recall"] = float("nan")
+
     for label, recall in zip(class_labels, recalls):
         result[f"recall_class_{label}"] = recall
+
     return result
+
+
+def primary_recall_key(attack_priority):
+    if attack_priority:
+        return "attack_macro_recall"
+    return "macro_recall"
 
 
 def evaluate_loader(model, loader, class_labels):
@@ -366,6 +386,7 @@ def run_baseline(
     max_epochs,
     hidden_options,
     run_seed,
+    attack_priority=False,
 ):
     baseline_start_time = time.time()
     class_labels = sorted(np.unique(y_train).tolist())
@@ -411,15 +432,22 @@ def run_baseline(
             os.path.join(OUTPUT_DIR, f"baseline_hidden_{hidden_units}_history.csv"),
             index=False,
         )
+        recall_key = primary_recall_key(attack_priority)
         print(
-            f"Baseline hidden={hidden_units}: val recall={val_metrics['macro_recall']:.4f}, "
-            f"val F1={val_metrics['macro_f1']:.4f}, time={train_time:.2f}s"
+            f"Baseline hidden={hidden_units}: "
+            f"val {recall_key}={val_metrics[recall_key]:.4f}, "
+            f"val F1={val_metrics['macro_f1']:.4f}, "
+            f"time={train_time:.2f}s"
         )
     results_df = pd.DataFrame(results)
     results_df.to_csv(os.path.join(OUTPUT_DIR, "baseline_search.csv"), index=False)
+    recall_key = primary_recall_key(attack_priority)
     best_row = max(
         results,
-        key=lambda row: (row["validation_macro_recall"], row["validation_macro_f1"]),
+        key=lambda row: (
+            row[f"validation_{recall_key}"],
+            row["validation_macro_f1"],
+        ),
     )
     best_hidden = int(best_row["hidden_units"])
     best_model = models[best_hidden]
@@ -439,9 +467,12 @@ def run_baseline(
             }
         ]
     ).to_csv(os.path.join(OUTPUT_DIR, "baseline_test.csv"), index=False)
+    recall_key = primary_recall_key(attack_priority)
     print(
-        f"Selected baseline hidden={best_hidden}: test recall={test_metrics['macro_recall']:.4f}, "
-        f"test F1={test_metrics['macro_f1']:.4f}, total time={baseline_total_time:.2f}s"
+        f"Selected baseline hidden={best_hidden}: "
+        f"test {recall_key}={test_metrics[recall_key]:.4f}, "
+        f"test F1={test_metrics['macro_f1']:.4f}, "
+        f"total time={baseline_total_time:.2f}s"
     )
     return best_model, test_metrics, class_labels, baseline_total_time, best_hidden
 
@@ -456,6 +487,7 @@ def run_incremental(
     max_epochs,
     max_hidden_units,
     run_seed,
+    attack_priority=False,
 ):
     incremental_start_time = time.time()
 
@@ -503,7 +535,9 @@ def run_incremental(
             model, train_metrics, val_metrics, history, best_epoch, train_time = (
                 train_model(model, train_loader, val_loader, active_classes, max_epochs)
             )
-            current_validation_recall = val_metrics["macro_recall"]
+            recall_key = primary_recall_key(attack_priority)
+            current_validation_recall = val_metrics[recall_key]
+
             if (
                 current_validation_recall
                 >= best_stage_validation_recall + MIN_HIDDEN_IMPROVEMENT
@@ -519,11 +553,11 @@ def run_incremental(
                     best_stage_hidden_units = model.hidden_units
                 failed_improvements += 1
             if (
-                train_metrics["macro_recall"] - val_metrics["macro_recall"]
+                train_metrics[recall_key] - val_metrics[recall_key]
                 >= OVERFIT_RECALL_GAP
             ):
                 fit_state = "overfit"
-            elif train_metrics["macro_recall"] >= UNDERFIT_TRAIN_RECALL:
+            elif train_metrics[recall_key] >= UNDERFIT_TRAIN_RECALL:
                 fit_state = "acceptable"
             elif failed_improvements >= HIDDEN_IMPROVEMENT_PATIENCE:
                 fit_state = "stagnated"
@@ -559,8 +593,10 @@ def run_incremental(
             )
             print(
                 f"Incremental classes={stage_size}, hidden={model.hidden_units}: "
-                f"state={fit_state}, train recall={train_metrics['macro_recall']:.4f}, "
-                f"val recall={val_metrics['macro_recall']:.4f}, time={train_time:.2f}s"
+                f"state={fit_state}, "
+                f"train {recall_key}={train_metrics[recall_key]:.4f}, "
+                f"val {recall_key}={val_metrics[recall_key]:.4f}, "
+                f"time={train_time:.2f}s"
             )
             if fit_state == "underfit" and model.hidden_units < max_hidden_units:
                 model.add_hidden_unit()
@@ -590,9 +626,12 @@ def run_incremental(
             }
         ]
     ).to_csv(os.path.join(OUTPUT_DIR, "incremental_test.csv"), index=False)
+    recall_key = primary_recall_key(attack_priority)
     print(
-        f"Incremental final hidden={model.hidden_units}: test recall={test_metrics['macro_recall']:.4f}, "
-        f"test F1={test_metrics['macro_f1']:.4f}, total time={incremental_total_time:.2f}s"
+        f"Incremental final hidden={model.hidden_units}: "
+        f"test {recall_key}={test_metrics[recall_key]:.4f}, "
+        f"test F1={test_metrics['macro_f1']:.4f}, "
+        f"total time={incremental_total_time:.2f}s"
     )
     return model, test_metrics, class_order, incremental_total_time, model.hidden_units
 
@@ -614,6 +653,8 @@ def save_run_config(run_number, run_seed, args):
     config = {
         "run_number": run_number,
         "run_seed": run_seed,
+        "attack_priority": args.attack_priority,
+        "ignored_recall_classes": "0,9",
         "fraction": args.fraction,
         "epochs": args.epochs,
         "baseline_hidden": args.baseline_hidden,
@@ -674,6 +715,7 @@ def save_experiment_status(
 
 def main():
     global OUTPUT_DIR
+    global OUTPUT_ROOT
 
     experiment_start_time = time.time()
 
@@ -696,6 +738,15 @@ def main():
     )
     parser.add_argument("--skip-baseline", action="store_true")
     parser.add_argument("--skip-incremental", action="store_true")
+    parser.add_argument(
+        "--attack-priority",
+        action="store_true",
+        help=(
+            "Use mean recall over classes 1-8 as the primary recall "
+            "criterion, ignoring Normal (0) and Generic (9). "
+            "Results are stored under outputFiles/attack_priority/."
+        ),
+    )
     args = parser.parse_args()
 
     if not 0 < args.fraction <= 1:
@@ -705,6 +756,9 @@ def main():
     if args.runs < 0:
         print("--runs must be >= 0")
         exit()
+
+    if args.attack_priority:
+        OUTPUT_ROOT = os.path.join(OUTPUT_ROOT, "attack_priority")
 
     os.makedirs(OUTPUT_ROOT, exist_ok=True)
     OUTPUT_DIR = OUTPUT_ROOT
@@ -798,6 +852,7 @@ def main():
                     args.epochs,
                     args.max_incremental_hidden,
                     run_seed,
+                    args.attack_priority,
                 )
             if not args.skip_baseline:
                 (
@@ -816,6 +871,7 @@ def main():
                     args.epochs,
                     hidden_options,
                     run_seed,
+                    args.attack_priority,
                 )
             run_total_time = time.time() - run_start_time
             comparison = []
@@ -895,6 +951,10 @@ def main():
                     incremental_metrics["macro_recall"]
                     - baseline_metrics["macro_recall"]
                 )
+                summary_row["attack_macro_recall_improvement"] = (
+                    incremental_metrics["attack_macro_recall"]
+                    - baseline_metrics["attack_macro_recall"]
+                )
                 summary_row["macro_f1_improvement"] = (
                     incremental_metrics["macro_f1"] - baseline_metrics["macro_f1"]
                 )
@@ -918,14 +978,14 @@ def main():
             )
 
             if baseline_metrics is not None and incremental_metrics is not None:
+                recall_key = primary_recall_key(args.attack_priority)
                 difference = (
-                    incremental_metrics["macro_recall"]
-                    - baseline_metrics["macro_recall"]
+                    incremental_metrics[recall_key] - baseline_metrics[recall_key]
                 )
                 print(
-                    f"Macro recall: "
-                    f"baseline={baseline_metrics['macro_recall']:.4f}, "
-                    f"incremental={incremental_metrics['macro_recall']:.4f}, "
+                    f"{recall_key}: "
+                    f"baseline={baseline_metrics[recall_key]:.4f}, "
+                    f"incremental={incremental_metrics[recall_key]:.4f}, "
                     f"difference={difference:+.4f}"
                 )
 

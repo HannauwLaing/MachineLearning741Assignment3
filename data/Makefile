@@ -9,6 +9,12 @@ run:
 	# @.venv/bin/python3 ./MLAssignment3.py --skip-baseline
 	@.venv/bin/python3 ./MLAssignment3.py $(ARGS)
 
+run_attack:
+	@mkdir -p ../report/outputFiles
+	@python3 -m venv .venv > /dev/null
+	# @.venv/bin/python3 ./MLAssignment3.py --skip-baseline
+	@.venv/bin/python3 ./MLAssignment3.py --attack-priority $(ARGS)
+
 plots:
 	@mkdir -p ../report/outputFiles
 	@python3 -m venv .venv > /dev/null

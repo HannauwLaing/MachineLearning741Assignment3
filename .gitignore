@@ -1,7 +1,7 @@
 report/outputFiles*.zip
+report/*.zip
 
 data/.venv
 
 report/outputFiles/targetT1/
 report/outputFiles/out_figures/
-

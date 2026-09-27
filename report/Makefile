@@ -7,10 +7,10 @@ _default:
 setup: make_plots
 	@#;
 
-make_plots:
+plots:
 	@$(MAKE) plots -C ../data/
 
-compilePDF: make_plots
+compilePDF: plots
 	mkdir -p outputFiles/targetT1/
 	# mkdir -p outputFiles/externalPlots/
 	@latexmk -pdf -pvc -view=none -shell-escape -auxdir=outputFiles/targetT1/ -outdir=../ -interaction=nonstopmode ./27086534RW741assignment*.tex
